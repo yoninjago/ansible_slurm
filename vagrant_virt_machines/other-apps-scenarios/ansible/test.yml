@@ -1,0 +1,66 @@
+---
+- name: "Replace strings"
+  hosts: localhost
+  vars:
+    servers:
+    - name: test1
+      ip: 3.158.67.55
+    - name: test2
+      ip: 3.34.85.53
+    - name: test3
+      ip: 31.4.87.31
+    other_servers:
+    - name: test1
+      ip: 31.11.33.21
+    - name: test2
+      ip: 31.11.54.33
+    - name: test3
+      ip: 55.11.44.33
+  tasks:
+    - name: "Update postgresql.conf"
+      lineinfile:
+        path: "config.ini"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - regexp: "frequency = 15m"
+          line: "frequency = 1h"
+        - regexp: "frequency = 5m"
+          line: "frequency = 2h"
+
+    - name: Make sure service has time to start or stop
+      pause:
+        seconds: 10
+
+    - name: "Update pg_hba.conf"
+      blockinfile:
+        path: "./config.ini"
+        insertafter: "### hosts are here ###"
+        block: |
+          host replication repluser 127.0.0.1/32 md5
+          host replication repluser 192.168.0.1/32 md5
+          host main 192.168.10.1/32 md5
+          host postgres 192.168.11.0/24 md5
+
+    - name: Make sure service has time to start or stop
+      pause:
+        seconds: 10
+
+    - name: "Insert servers"
+      blockinfile:
+        path: "./config.ini"
+        block: |
+          host main {{item.name}} {{item.ip}}/32 md5
+      loop: "{{ servers }}"
+
+    - name: Make sure service has time to start or stop
+      pause:
+        seconds: 10
+
+    - name: "Insert servers"
+      blockinfile:
+        path: "./config.ini"
+        marker: "### other server {{ item.name }}"
+        block: |
+          host main {{item.name}} {{item.ip}}/32 md5
+      loop: "{{ other_servers }}"

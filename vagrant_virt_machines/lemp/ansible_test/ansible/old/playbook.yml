@@ -1,0 +1,15 @@
+#################
+# LEMP PLAYBOOK #
+#################
+---
+- hosts: "all"
+  become: true
+  roles:
+  - nginx # все таски файла main.yml по пути %директория ansible%/roles/nginx/tasks/
+  - mysql # все таски файла main.yml по пути %директория ansible%/roles/mysql/tasks/
+  - php # все таски файла main.yml по пути %директория ansible%/roles/php/tasks/
+  tasks:
+  - name: "Reload nginx" # этот таск не относится к ролям напрямую, поэтому вынесен после выполнения всех ролей
+    ansible.builtin.service:
+      name: "nginx"
+      state: "reloaded"
