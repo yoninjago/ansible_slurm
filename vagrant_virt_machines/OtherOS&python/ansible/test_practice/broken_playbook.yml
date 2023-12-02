@@ -1,0 +1,88 @@
+---
+- name: "Installing python"
+  hosts: "centos_python"
+  become: true
+
+  tasks:
+
+  - name: "Installing python3"
+    ansible.builtin.yum:
+      name: python3
+      update_cache: true
+
+  - name: Install python deps
+    ansible.builtin.yum:
+      name:
+        - python3-pip
+        - python3-setuptools
+        - libselinux-python3
+      state: latest
+      update_cache: True
+
+- name: "Pip venv"
+  hosts: "centos_python"
+  become: true
+  vars:
+    app_name: "hello"
+    mysql_password: "password"
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks:
+
+  - name: "Copy python files"
+    ansible.builtin.copy:
+      src: files/app
+      dest: /apps/{{app_name}}
+      owner: vagrant
+      group: vagrant
+      mode: 0644
+
+  - name: Install virtualenv via pip
+    ansible.builtin.pip:
+      name: virtualenv
+      executable: pip3
+
+  - name: Install requirements
+    ansible.builtin.pip:
+      requirements: /apps/{{app_name}}/app/requirements.txt
+      virtualenv: /apps/{{app_name}}/venv
+      virtualenv_command: /usr/bin/python3 -m venv
+    become: false
+
+  - name: Copy service file
+    ansible.builtin.template:
+      src: service.service.j2
+      dest: /etc/systemd/system/{{app_name}}.service
+      owner: vagrant
+      group: vagrant
+      mode: 0644
+
+  - name: "Install mysql"
+    ansible.builtin.yum:
+      name: mariadb-server
+      update_cache: yes
+      state: latest
+
+  - name: "Installing Pymysql for python related modules"
+    ansible.builtin.yum:
+      name: python2-PyMySQL
+      update_cache: yes
+      state: latest
+
+  - name: "Start mariadb"
+    ansible.builtin.service:
+      name: mariadb
+      state: started
+
+  - name: "Add the MySQL database"
+    community.mysql.mysql_db:
+      name: service_db
+      state: present
+      login_user: root
+      login_password: "password"
+      check_implicit_admin: true
+
+  - name: "Start service"
+    ansible.builtin.service:
+      name: "{{ app_name }}"
+      state: started
